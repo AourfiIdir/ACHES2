@@ -16,7 +16,8 @@ enum Page
 {
     MENU_PAGE,
     GAME_PAGE1,
-    GAME_PAGE2
+    GAME_PAGE2,
+    GAME_ACHI
 };
 int broke;
 enum Page current_page = MENU_PAGE;
@@ -46,6 +47,13 @@ SDL_Texture *backgroundTexture3 = NULL;
 SDL_Surface *loadedSurface1 = NULL;
 SDL_Surface *loadedSurface2 = NULL;
 SDL_Surface *loadedSurface3 = NULL;
+
+
+//achi board
+void achi_board(int board[3][3]);
+int achi_event2(int player,int board[3][3], int board_width,int board_height,int cellsize);
+int achi_event3(int player, int board[3][3], int board_width, int board_height, int cell_size);
+
 
 //____________background
 void load_background()
@@ -82,6 +90,9 @@ void render_backgrounds()
         SDL_RenderCopy(render, backgroundTexture2, NULL, NULL);
         break;
     case GAME_PAGE2:
+        SDL_RenderCopy(render, backgroundTexture3, NULL, NULL);
+        break;
+    case GAME_ACHI:
         SDL_RenderCopy(render, backgroundTexture3, NULL, NULL);
         break;
     }
@@ -195,6 +206,8 @@ void render_menu()
     render_font(p2p, 250, 200);
     const char *ia = "IA";
     render_font(ia, 260, 260);
+    const char *achi = "ACHI";
+    render_font(achi, 260, 300);
     SDL_RenderPresent(render);
 }
 void render_page1()
@@ -206,6 +219,11 @@ void render_page1()
 void render_page2()
 {
     renders_board(board);
+    const char *come_back = "come back";
+    render_font(come_back, 0, 0);
+}
+void render_page3(){
+    achi_board(board);
     const char *come_back = "come back";
     render_font(come_back, 0, 0);
 }
@@ -222,6 +240,9 @@ void render_pages()
         break;
     case GAME_PAGE2:
         render_page2();
+        break;
+    case GAME_ACHI:
+        render_page3();
         break;
     }
 }
@@ -322,10 +343,15 @@ void pull_event1()
         {
             current_page = MENU_PAGE;
             broke = 1;
+        }else if (x >= 260 && x <= (260 + 60) &&
+                 y >= 300 && y <= (300 + 30))
+        {
+            current_page = GAME_ACHI;
+            broke = 1;
         }
     }
 }
-//placement ia
+//placement p2p
 int pull_event2(int player, int board_width, int board_height, int cell_size) {
     int x, y;
     SDL_Event event;
@@ -706,6 +732,45 @@ int main(int argc, char *argv[])
         pull_event1(); // Assuming this function waits for user input to continue
     }
 }
+        //achi
+        //playing p2p
+        while (gaming == 0 && broke == 0 && current_page == GAME_ACHI) { //game loop for first option
+        render_pages();
+
+        if (check_winner_board(board) == 0)
+        {
+            if (rounds > 0)
+            {
+                if (achi_event2(turn,board, 300, 300, 100))
+                {
+                    // Change turn only after a valid move
+                    turn = (turn == PLAYER1) ? PLAYER2 : PLAYER1;
+                    rounds--;
+                }
+                
+            }
+            else
+            {
+                if (achi_event3(turn,board,300, 300, 100))
+                {
+                    // Change turn only after a valid move
+                    turn = (turn == PLAYER1) ? PLAYER2 : PLAYER1;
+                }
+            }
+        }
+        //display winner font
+        if (check_winner_board(board) != 0) {
+            int winner_num = check_winner_board(board);
+            const char *winner;
+            if (winner_num == PLAYER1) {
+                winner = "The winner is Player One";
+            } else {
+                winner = "The winner is Player Two";
+            }
+            render_font(winner, 150, 60);
+            pull_event1();
+        }
+    }
 
 
         //menu
@@ -718,3 +783,163 @@ int main(int argc, char *argv[])
     destroy_window();
     return 0;
 }
+
+void achi_board(int board[3][3]) {
+    SDL_SetRenderDrawColor(render, 255, 255, 255, 255); // white color
+
+    // Calculate offsets to center the board
+    int x_offset = (600 - (CELLS * CELL_SIZE)) / 2;
+    int y_offset = (600 - (CELLS * CELL_SIZE)) / 2;
+    //Clear the screen before drawing the new board state
+    SDL_RenderCopy(render, backgroundTexture3, NULL, NULL);
+    //render_page1();
+    // Draw grid lines
+    SDL_SetRenderDrawColor(render, 255, 255, 255, 255); // White color for grid lines
+    // Draw the board lines
+    SDL_RenderDrawLine(render, x_offset, y_offset, x_offset + 300, y_offset + 300);
+    SDL_RenderDrawLine(render, x_offset + 300, y_offset, x_offset, y_offset + 300);
+    SDL_RenderDrawLine(render, x_offset + 150, y_offset, x_offset + 150, y_offset + 300);
+    SDL_RenderDrawLine(render, x_offset, y_offset + 150, x_offset + 300, y_offset + 150);
+
+    // Draw pieces
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            int x = x_offset + (i * CELL_SIZE);
+            int y = y_offset + (j * CELL_SIZE);
+
+            if (board[i][j] == PLAYER1) {
+                SDL_SetRenderDrawColor(render, 0, 255, 0, 255); // Green color for PLAYER1
+                // Draw X for PLAYER1 (you may want to use lines or a texture here)
+                SDL_RenderDrawLine(render, x, y, x + CELL_SIZE, y + CELL_SIZE);
+                SDL_RenderDrawLine(render, x + CELL_SIZE, y, x, y + CELL_SIZE);
+            } else if (board[i][j] == PLAYER2) {
+                SDL_SetRenderDrawColor(render, 0, 0, 255, 255); // Blue color for PLAYER2
+                // Draw O for PLAYER2 (circle or similar shape)
+                SDL_Rect orect;
+                orect.x = x + CELL_SIZE / 4;
+                orect.y = y + CELL_SIZE / 4;
+                orect.w = CELL_SIZE / 2;
+                orect.h = CELL_SIZE / 2;
+                SDL_RenderDrawRect(render, &orect); // Draw rectangle as placeholder for O
+            }
+        }
+    }
+}
+
+
+// Placement p2p
+int achi_event2(int player, int board[3][3], int board_width, int board_height, int cell_size) {
+    int x, y;
+    SDL_Event event;
+
+    if (SDL_PollEvent(&event)) {
+        int board_x = 150;
+        int board_y = 150;
+
+        switch (event.type) {
+        case SDL_QUIT:
+            gaming = 0; // Assuming 'gaming' is a flag to end the game
+            return 0; // Exit the function when quitting
+
+        case SDL_MOUSEBUTTONDOWN:
+            SDL_GetMouseState(&x, &y);
+
+            // Check if the click is within the game board area
+            if (x >= board_x && x <= board_x + board_width &&
+                y >= board_y && y <= board_y + board_height) {
+                int col = (y - board_y) / cell_size;
+                int row = (x - board_x) / cell_size;
+
+                // Check if the cell is within bounds and is empty
+                if (row >= 0 && row < 3 &&
+                    col >= 0 && col < 3 &&
+                    board[row][col] == 0) {
+                    board[row][col] = player;
+                    return 1; // Move was made, turn should change
+                }
+            } else if (x >= 0 && x <= 60 &&
+                       y >= 0 && y <= 30) {
+                current_page = MENU_PAGE;
+                broke = 1;
+                return 0; // No move was made, but menu was accessed
+            }
+            break;
+
+        default:
+            break;
+        }
+    }
+    return 0; // No valid move was made, turn should not change
+}
+
+
+
+
+int achi_event3(int player, int board[3][3], int board_width, int board_height, int cell_size) {
+    static int phase = 0; // 0: Selecting piece, 1: Selecting destination
+    static int src_row = -1, src_col = -1; // Track selected piece position
+    int x, y;
+    SDL_Event event;
+
+    if (SDL_PollEvent(&event)) {
+        int board_x = 150; // Top-left x-coordinate of the board
+        int board_y = 150; // Top-left y-coordinate of the board
+
+        switch (event.type) {
+        case SDL_QUIT:
+            gaming = 1; // Exit the game
+            break;
+
+        case SDL_MOUSEBUTTONDOWN:
+            SDL_GetMouseState(&x, &y);
+
+            // Check if the click is within the game board area
+            if (x >= board_x && x <= board_x + board_width &&
+                y >= board_y && y <= board_y + board_height) {
+                int col = (y - board_y) / cell_size;
+                int row = (x - board_x) / cell_size;
+
+                // Debugging info
+                printf("Mouse clicked at (%d, %d), Board position (%d, %d)\n", x, y, row, col);
+
+                if (phase == 0) {
+                    // Phase 0: Select a piece
+                    if (row >= 0 && row < 3 && col >= 0 && col < 3 && board[row][col] == player) {
+                        src_row = row;
+                        src_col = col;
+                        board[src_row][src_col] = 0; // Temporarily clear the selected cell
+                        printf("Selected piece at (%d, %d)\n", src_row, src_col);
+                        phase = 1; // Move to the destination selection phase
+                    }
+                } else if (phase == 1) {
+                    // Phase 1: Select a destination
+                    if (row >= 0 && row < 3 && col >= 0 && col < 3 && board[row][col] == 0 &&
+                        (abs(row - src_row) <= 1 && abs(col - src_col) <= 1)) { // Include diagonals
+                        board[row][col] = player; // Move the piece
+                        printf("Moved piece to (%d, %d)\n", row, col);
+                        src_row = -1; // Reset selection
+                        src_col = -1;
+                        phase = 0; // Reset to initial phase
+                        return 1; // Move was made, turn should change
+                    } else {
+                        // Invalid move, reset selection
+                        board[src_row][src_col] = player; // Restore the piece
+                        printf("Invalid move, piece reset to (%d, %d)\n", src_row, src_col);
+                        src_row = -1;
+                        src_col = -1;
+                        phase = 0; // Reset to initial phase
+                    }
+                }
+            } else if (x >= 0 && x <= 60 && y >= 0 && y <= 30) {
+                current_page = MENU_PAGE; // Handle menu navigation
+                broke = 1;
+            }
+            break;
+
+        default:
+            break;
+        }
+    }
+    return 0; // No valid move was made, turn should not change
+}
+
